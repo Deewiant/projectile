@@ -785,6 +785,24 @@ You'd normally combine this with `projectile-test-with-sandbox'."
     (let ((projectile-known-projects nil))
       (expect (projectile-switch-project) :to-throw))))
 
+(describe "projectile-switch-project-by-name"
+  (it "applies dir-locals to projectile-switch-project-action"
+    (projectile-test-with-sandbox
+      (projectile-test-with-files
+        ("project/"
+         "project/.dir-locals.el")
+        ;; Use a temporary global variable that the dir-locals can overwrite,
+        ;; and have projectile-switch-project-action save its value during the
+        ;; so that we can check that the dir-locals were set at the right time.
+        (defvar projectile-test-dir-locals 'failed)
+        (with-temp-file "project/.dir-locals.el" (insert "((nil . ((projectile-test-dir-locals . passed))))\n"))
+        (let ((test-result 'broken)
+              (safe-local-variable-values '((projectile-test-dir-locals . passed)))
+              (projectile-switch-project-action (lambda () (setq test-result projectile-test-dir-locals))))
+          (projectile-switch-project-by-name (concat default-directory "project/"))
+          (makunbound projectile-test-dir-locals)
+          (expect test-result :to-equal 'passed))))))
+
 (describe "projectile-ignored-buffer-p"
   (it "checks if buffer should be ignored"
     (let ((projectile-globally-ignored-buffers '("*nrepl messages*" "*something*")))
